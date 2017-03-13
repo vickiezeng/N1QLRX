@@ -6,8 +6,17 @@
 			<param name="ConversionPattern" value="%-4r [%t] %-5p %c %x - %m%n" />
 		</layout>
 	</appender>
+	<appender name="file"  
+        class="org.apache.log4j.FileAppender">  
+        <param name="File" value="/Users/vickie/Downloads/QueryTest/file.log"></param>  
+        <param name="Threshold" value="trace"></param>  
+        <layout class="org.apache.log4j.PatternLayout">  
+            <param name="ConversionPattern" value="[%d{yyyy-MM-dd HH:mm:ss\} %-5p] [%t] {%c:%L}-%m%n"></param>  
+        </layout>  
+    </appender>
 	<root>
 		<level value="trace" />
 		<appender-ref ref="CA" />
+		<appender-ref ref="file" />
 	</root>
 </log4j:configuration>

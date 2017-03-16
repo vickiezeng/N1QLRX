@@ -29,6 +29,7 @@ import com.couchbase.client.java.query.Statement;
 
 import rx.Observable;
 import rx.functions.Func1;
+import rx.schedulers.Schedulers;
 
 public class timeout_run_New {
 
@@ -65,7 +66,9 @@ public class timeout_run_New {
                 public Observable<JsonDocument> call(String id) {                    
                     return bucketExt.async().get(id);
                 }
-            }).flatMap(new Func1<JsonDocument, Observable<JsonDocument>>() {
+            })
+            .observeOn(Schedulers.io())
+            .flatMap(new Func1<JsonDocument, Observable<JsonDocument>>() {
                 @Override
                 public Observable<JsonDocument> call(JsonDocument loaded) {                    
                     String xcdkey="XCD::"+loaded.content().get("extrnCode")+"::"+ loaded.content().get("procGrpId")+"::4::0::0";

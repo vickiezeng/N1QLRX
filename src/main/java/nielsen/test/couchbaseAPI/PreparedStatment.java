@@ -56,7 +56,7 @@ public class PreparedStatment {
             }            
             String[] extList = new String[listId.size()];
             extList = listId.toArray(extList);     
-            System.out.println("size is"+extList.length);
+//            System.out.println("size is"+extList.length);
             Observable
             .from(extList)
             .flatMap(new Func1<String, Observable<JsonDocument>>() {
@@ -76,13 +76,13 @@ public class PreparedStatment {
 //                    try{
                         //JsonDocument xcdResult = bucketXcd.get(xcdkey); 
                         String query="select meta().id,'CHANGED' status from " + xcdBucketName + " USE KEYS $1";
-                        System.out.println("query xcd..."+xcdkey);
+//                        System.out.println("query xcd..."+xcdkey);
                         JsonArray queryParams = JsonArray.create().add(xcdkey);
 //                        N1qlQueryResult xcdResult = bucketXcd.query(N1qlQuery.simple(query));
                         N1qlQueryResult xcdResult = bucketXcd.query(N1qlQuery.parameterized(query, queryParams, N1qlParams.build().adhoc(false)));
                         for (N1qlQueryRow xcd : xcdResult) {
                         id = xcd.value().get("id").toString();    
-                        System.out.println("Id :"+id);
+//                        System.out.println("Id :"+id);
                         }
                         /*if(!xcdResult.content().isEmpty()){
                             extItm.put("status", "Changed");
@@ -98,9 +98,9 @@ public class PreparedStatment {
                     JsonDocument docNew = JsonDocument.create(extKey, extItm);
                     return bucketExt.async().upsert(docNew);                
                 }
-            }).subscribe(jsondoc -> {System.out.println("json:"+jsondoc);},
-                    runtimeError -> {runtimeError.printStackTrace();System.out.println("Error Count"+latch.getCount()) ; latch.countDown();},
-                    () -> {System.out.println("Finished Count"+latch.getCount());latch.countDown();});
+            }).subscribe(jsondoc -> {},
+                    runtimeError -> {runtimeError.printStackTrace(); latch.countDown();},
+                    () -> {latch.countDown();});
             latch.await();
             return Thread.currentThread().getName();
         }

@@ -25,6 +25,7 @@ import com.couchbase.client.java.query.Statement;
 
 import rx.Observable;
 import rx.functions.Func1;
+import rx.schedulers.Schedulers;
 
 public class timeout_run {
 
@@ -39,7 +40,7 @@ public class timeout_run {
         @Override
         public String call() throws Exception {
             System.out.println("Starting:" + Thread.currentThread().getName());
-            CountDownLatch latch = new CountDownLatch(2);        
+            CountDownLatch latch = new CountDownLatch(1);        
             List<String> listId = new ArrayList<>();            
             
             String Status="PENDING";            
@@ -61,7 +62,8 @@ public class timeout_run {
                 public Observable<JsonDocument> call(String id) {                    
                     return bucketExt.async().get(id);
                 }
-            }).flatMap(new Func1<JsonDocument, Observable<JsonDocument>>() {
+            }).observeOn(Schedulers.io())
+             .flatMap(new Func1<JsonDocument, Observable<JsonDocument>>() {
                 @Override
                 public Observable<JsonDocument> call(JsonDocument loaded) {                    
                     String xcdkey="XCD::"+loaded.content().get("extrnCode")+"::"+ loaded.content().get("procGrpId")+"::4::0::0";
@@ -92,7 +94,7 @@ public class timeout_run {
                     JsonDocument docNew = JsonDocument.create(extKey, extItm);
                     return bucketExt.async().upsert(docNew);                
                 }
-            }).subscribe(jsondoc -> {System.out.println("json:"+jsondoc);latch.countDown();},
+            }).subscribe(jsondoc -> {System.out.println("json:"+jsondoc);},
                     runtimeError -> {runtimeError.printStackTrace();System.out.println("Error Count"+latch.getCount()) ; latch.countDown();},
                     () -> {System.out.println("Finished Count"+latch.getCount());latch.countDown();});
             latch.await();

@@ -15,7 +15,7 @@
         </layout>  
     </appender>
 	<root>
-		<level value="trace" />
+		<level value="INFO" />
 		<appender-ref ref="CA" />
 		<appender-ref ref="file" />
 	</root>

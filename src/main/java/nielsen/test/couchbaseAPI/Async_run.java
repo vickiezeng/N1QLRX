@@ -78,7 +78,7 @@ public class Async_run {
             public Observable<JsonDocument> call(String id) {                    
                 return bucketExt.async().get(id);
             }
-        }) .observeOn(Schedulers.io()).flatMap(new Func1<JsonDocument,Observable<JsonDocument>>() {
+        }).flatMap(new Func1<JsonDocument,Observable<JsonDocument>>() {
             @Override
             public Observable<JsonDocument> call(JsonDocument loaded) {                    
                 String xcdkey="XCD::"+loaded.content().get("extrnCode")+"::"+ loaded.content().get("procGrpId")+"::4::0::0";
@@ -86,15 +86,12 @@ public class Async_run {
                 //JsonDocument docNew = JsonDocument.create(key, loaded.content());
                 JsonObject extItm = loaded.content();
                 
-                try{
+//                try{
                     //JsonDocument xcdResult = bucketXcd.get(xcdkey); 
                 	String query="select meta().id from " + xcdBucketName + " USE KEYS "+'"'+xcdkey+'"';  
                     Observable<AsyncN1qlQueryResult> xcdResult = bucketXcd.async().query(N1qlQuery.simple(query));
-                    xcdResult.flatMap(result ->
-                    result.errors()
-                    .flatMap(e -> Observable.<AsyncN1qlQueryRow>error(new Throwable("N1QL Error/Warning: " + e)))
-                    .switchIfEmpty(result.rows())
-                    )
+                    xcdResult.flatMap(result ->result.errors().flatMap(e -> Observable.<AsyncN1qlQueryRow>error(new Throwable("N1QL Error/Warning: " + e)))
+                    .switchIfEmpty(result.rows()))
                  .map(AsyncN1qlQueryRow::value).subscribe(new Subscriber<JsonObject>() 
                 {
                 	@Override 
@@ -129,9 +126,9 @@ public class Async_run {
 ////					
 //				}
 //			});           
-           }catch(Exception e){
-                    System.out.println("Error:"+e.getMessage());
-                }
+//           }catch(Exception e){
+//                    System.out.println("Error:"+e.getMessage());
+//                }
                 JsonDocument docNew = JsonDocument.create(extKey, extItm);
                 System.out.println("updated");
 //                try {

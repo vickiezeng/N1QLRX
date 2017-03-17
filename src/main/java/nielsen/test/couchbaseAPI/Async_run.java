@@ -78,16 +78,13 @@ public class Async_run {
             public Observable<JsonDocument> call(String id) {                    
                 return bucketExt.async().get(id);
             }
-        }).flatMap(new Func1<JsonDocument,Observable<JsonDocument>>() {
+        }).map(new Func1<JsonDocument,String>() {
             @Override
-            public Observable<JsonDocument> call(JsonDocument loaded) {                    
+            public String call(JsonDocument loaded) {                    
                 String xcdkey="XCD::"+loaded.content().get("extrnCode")+"::"+ loaded.content().get("procGrpId")+"::4::0::0";
                 String extKey="Ext::"+loaded.content().get("extrnItemId");
                 //JsonDocument docNew = JsonDocument.create(key, loaded.content());
                 JsonObject extItm = loaded.content();
-                
-//                try{
-                    //JsonDocument xcdResult = bucketXcd.get(xcdkey); 
                 	String query="select meta().id from " + xcdBucketName + " USE KEYS "+'"'+xcdkey+'"';  
                     Observable<AsyncN1qlQueryResult> xcdResult = bucketXcd.async().query(N1qlQuery.simple(query));
                     xcdResult.flatMap(result ->result.errors().flatMap(e -> Observable.<AsyncN1qlQueryRow>error(new Throwable("N1QL Error/Warning: " + e)))
@@ -96,11 +93,13 @@ public class Async_run {
                 {
                 	@Override 
                 	public void onCompleted() 
-                	{   
+                	{   latch.countDown();
                 		System.out.println("Complete! latch=");
                 		} 
                 	@Override 
-                	public void onError(Throwable e) { }
+                	public void onError(Throwable e) {
+                		latch.countDown();
+                	}
                 	@Override 
                 	public void onNext(JsonObject value)
                 	{
@@ -108,42 +107,17 @@ public class Async_run {
 					if(value.get("id").toString()!= null){
 					
 					 extItm.put("status", "Changed");	
+					 JsonDocument docNew = JsonDocument.create(extKey, extItm);
+					 bucketExt.async().upsert(docNew);
 					 System.out.println("exist");
 					 }    	
                 }
                 });
-                
-              
-//                .subscribe(new Action1<JsonObject>() {
-//				@Override
-//				public void call(final JsonObject content) { 
-//					System.out.println(content);
-//					if(content.get("id").toString()!= null){
-//						
-//						 extItm.put("status", "Changed");	
-//						 System.out.println("exist");
-//					}
-////					
-//				}
-//			});           
-//           }catch(Exception e){
-//                    System.out.println("Error:"+e.getMessage());
-//                }
-                JsonDocument docNew = JsonDocument.create(extKey, extItm);
-                System.out.println("updated");
-//                try {
-//					latch1.await();
-//				} catch (InterruptedException e) {
-//					// TODO Auto-generated catch block
-//					e.printStackTrace();
-//				}
-        
-                return bucketExt.async().upsert(docNew); 
+                return "updated";
 //              return  (String) extItm.get("status");
             }
-        }).subscribe(jsondoc -> {System.out.println("json:"+jsondoc);},
-                runtimeError -> {runtimeError.printStackTrace();latch.countDown();System.out.println("Error Count"+latch.getCount());},
-                () -> {latch.countDown();System.out.println("Finished Count"+latch.getCount());});
+        })
+        .subscribe(finished -> {System.out.println("json:"+finished);});
 //        latch1.await();
         latch.await();
 //        return Thread.currentThread().getName();

@@ -46,7 +46,7 @@ public class fully_Async {
         @Override
         public String call() throws Exception {
             System.out.println("Starting:" + Thread.currentThread().getName());
-            CountDownLatch latch = new CountDownLatch(1);        
+                 
             List<String> listId = new ArrayList<>();            
             
             String Status="PENDING";            
@@ -61,58 +61,37 @@ public class fully_Async {
             String[] extList = new String[listId.size()];
             extList = listId.toArray(extList);     
             System.err.println("Size of list "+extList.length);
-            Observable
-            .from(extList)
-            .flatMap(new Func1<String, Observable<JsonDocument>>() {
-                @Override
-                public Observable<JsonDocument> call(String id) {                    
-                    return bucketExt.async().get(id);
-                }
-            })
-//            .observeOn(Schedulers.io())
-            .subscribe(new Subscriber<JsonDocument>()  {
-            	@Override 
-            	public void onCompleted() 
-            	{   
-            		latch.countDown();
-            		System.err.println("completed"+latch.getCount());
-            		} 
-            	@Override 
-            	public void onError(Throwable e) {
-            		latch.countDown();
-            		System.err.println("error"+latch.getCount());}
-            	
-            	@Override 
-            	public void onNext(JsonDocument loaded)
-            	{
-            		
-            		 String xcdkey="XCD::"+loaded.content().get("extrnCode")+"::"+ loaded.content().get("procGrpId")+"::4::0::0";
-                     String extKey="Ext::"+loaded.content().get("extrnItemId");
-                     //JsonDocument docNew = JsonDocument.create(key, loaded.content());
-                     JsonObject extItm = loaded.content();
-                     System.err.println(xcdkey);
-                         //JsonDocument xcdResult = bucketXcd.get(xcdkey); 
-                     String query="select meta().id from " + xcdBucketName + " USE KEYS "+'"'+xcdkey+'"';
-                     Observable<AsyncN1qlQueryResult> xcdResult = bucketXcd.async().query(N1qlQuery.simple(query));
-                     xcdResult.flatMap(result ->result.errors().flatMap(e -> Observable.<AsyncN1qlQueryRow>error(new Throwable("N1QL Error/Warning: " + e)))
-                    .switchIfEmpty(result.rows()))
-                    .map(AsyncN1qlQueryRow::value).flatMap(new Func1<JsonObject, Observable<JsonDocument>>() {
-                          @Override
-                          public Observable<JsonDocument> call(JsonObject row) { 
-                        	  System.err.println(row);
-                        	  if(row.get("id").toString()!= null){
-              					
-             					 extItm.put("status", "Changed");
-             					System.err.println("changed,exist");
-                        	  }
-                        	  JsonDocument docNew = JsonDocument.create(extKey, extItm);	
-                              return bucketExt.async().upsert(docNew);
-                          }
-                      });
-            		}
-                       
-        });
-            latch.await();
+            
+            if (extList.length > 0) {
+			    CountDownLatch latch = new CountDownLatch(1);
+			    Observable
+					.from(extList)
+					.flatMap(key ->  bucketExt.async().get(key))
+					.flatMap(new Func1<JsonDocument, Observable<AsyncN1qlQueryResult>>() {
+						@Override
+						public Observable<AsyncN1qlQueryResult> call(JsonDocument loaded) {
+							String xcdkey = "XCD::" + loaded.content().get("extrnCode") + "::" + loaded.content().get("procGrpId") + "::4::0::0";
+							String extKey = "Ext::" + loaded.content().get("extrnItemId");
+							String query = "select meta().id, \"" + extKey + "\" from " + xcdBucketName + " USE KEYS " + '"' + xcdkey + '"';
+							return bucketXcd.async().query(N1qlQuery.simple(query));
+						}
+					})
+					.flatMap(result ->  result.errors().flatMap(e -> Observable.<AsyncN1qlQueryRow>error(new Throwable("N1QL Error/Warning: " + e)))
+								.switchIfEmpty(result.rows()))
+					.map(AsyncN1qlQueryRow::value)
+					.flatMap(v ->  {
+						System.out.println(v);
+						return bucketExt.async().mutateIn(v.get("$1").toString()).upsert("status", "Changed").execute();
+					})
+					.subscribe(
+							v -> System.out.println(v),
+							err -> {
+								err.printStackTrace();
+								latch.countDown(); },
+							() -> latch.countDown()
+					);
+			  latch.await();
+            }
             return Thread.currentThread().getName();
         }
     }
